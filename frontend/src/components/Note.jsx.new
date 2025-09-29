@@ -1,0 +1,196 @@
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Group, Rect } from 'react-konva'
+import { Html } from 'react-konva-utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
+const Note = ({ note, onUpdate, onDelete, onConnect, isSelected, onSelect, zIndex, isDragging: externalDragging, onDragChange }) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [content, setContent] = useState(note.content || '')
+  const [noteSize, setNoteSize] = useState({
+    width: note.dimensions?.width || 250,
+    height: note.dimensions?.height || 300
+  })
+
+  const groupRef = useRef()
+  const contentRef = useRef()
+
+  const handleSave = useCallback(() => {
+    if (content !== note.content) {
+      // Extract first line as title if it starts with #
+      const lines = content.split('\n')
+      const firstLine = lines[0] || ''
+      const title = firstLine.startsWith('# ') ? firstLine.slice(2) : firstLine
+      const restContent = lines.slice(1).join('\n')
+      onUpdate({ ...note, title, content: restContent })
+    }
+    setIsEditing(false)
+  }, [content, note, onUpdate])
+
+  // Auto-resize based on content
+  useEffect(() => {
+    if (!isEditing && contentRef.current) {
+      const height = Math.max(150, Math.min(500, contentRef.current.clientHeight + 40))
+      if (Math.abs(height - noteSize.height) > 20) {
+        const newDimensions = { width: noteSize.width, height }
+        setNoteSize(newDimensions)
+        onUpdate({ ...note, dimensions: newDimensions })
+      }
+    }
+  }, [content, isEditing])
+
+  const debouncedSave = useCallback(() => {
+    const lines = content.split('\n')
+    const firstLine = lines[0] || ''
+    const title = firstLine.startsWith('# ') ? firstLine.slice(2) : firstLine
+    const restContent = lines.slice(1).join('\n')
+    onUpdate({ ...note, title, content: restContent })
+  }, [content, note, onUpdate])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setIsEditing(false)
+    } else if ((e.key === 'Enter' && e.metaKey) || (e.key === 'Enter' && e.ctrlKey)) {
+      e.preventDefault()
+      handleSave()
+    }
+  }
+
+  return (
+    <Group
+      ref={groupRef}
+      x={note.position?.x ?? 0}
+      y={note.position?.y ?? 0}
+      draggable={!isEditing}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseDown={() => onSelect?.()}
+      onDragStart={(e) => {
+        setIsDragging(true)
+        onDragChange?.(true)
+        onSelect?.()
+        e.target.moveToTop()
+        e.target.to({
+          scaleX: 1.02,
+          scaleY: 1.02,
+          duration: 0.1
+        })
+      }}
+      onDragEnd={(e) => {
+        const newPosition = {
+          x: Math.round(e.target.x()),
+          y: Math.round(e.target.y())
+        }
+        setIsDragging(false)
+        onDragChange?.(false)
+        onUpdate({ ...note, position: newPosition })
+        e.target.to({
+          scaleX: 1,
+          scaleY: 1,
+          duration: 0.1
+        })
+      }}
+    >
+      <Rect
+        width={noteSize.width}
+        height={noteSize.height}
+        fill={note.color || '#ffffff'}
+        stroke={isSelected ? "rgba(0, 122, 255, 0.5)" : (isHovered ? "rgba(0, 0, 0, 0.05)" : "transparent")}
+        strokeWidth={isSelected ? 2 : 1}
+        shadowColor="rgba(0, 0, 0, 0.1)"
+        shadowBlur={isHovered ? 12 : 8}
+        shadowOffsetX={0}
+        shadowOffsetY={isHovered ? 4 : 2}
+        shadowOpacity={0.25}
+        cornerRadius={8}
+        onDblClick={() => setIsEditing(true)}
+        opacity={isDragging ? 0.85 : 1}
+      />
+
+      {isEditing ? (
+        <Html>
+          <div
+            style={{
+              width: noteSize.width + 'px',
+              height: noteSize.height + 'px',
+              position: 'absolute',
+              background: note.color || '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              overflow: 'hidden'
+            }}
+          >
+            <textarea
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value)
+                debouncedSave()
+              }}
+              onKeyDown={handleKeyDown}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                background: 'transparent',
+                resize: 'none',
+                outline: 'none',
+                padding: '12px',
+                fontSize: '14px',
+                lineHeight: '1.6',
+                color: 'rgba(0, 0, 0, 0.8)',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+              }}
+              placeholder="Type # for heading..."
+              autoFocus
+            />
+          </div>
+        </Html>
+      ) : (
+        <Html>
+          <div
+            ref={contentRef}
+            style={{
+              width: noteSize.width + 'px',
+              padding: '12px',
+              boxSizing: 'border-box',
+              cursor: 'pointer'
+            }}
+            onClick={() => onSelect?.()}
+          >
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ children }) => (
+                  <h1 style={{ 
+                    margin: '0 0 8px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'rgba(0, 0, 0, 0.8)'
+                  }}>
+                    {children}
+                  </h1>
+                ),
+                p: ({ children }) => (
+                  <p style={{ 
+                    margin: '0 0 8px 0',
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    color: 'rgba(0, 0, 0, 0.7)'
+                  }}>
+                    {children}
+                  </p>
+                )
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        </Html>
+      )}
+    </Group>
+  )
+}
+
+export default Note

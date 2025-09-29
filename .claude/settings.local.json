@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(npm test)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ollama list:*)",
+      "Bash(curl:*)",
+      "Bash(node server.js)",
+      "Bash(node:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
