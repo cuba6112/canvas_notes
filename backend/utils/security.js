@@ -97,14 +97,13 @@ const validateNoteData = (data) => {
     if (typeof data.title !== 'string') {
       errors.push('Title must be a string')
     } else {
+      if (data.title.length > SECURITY_CONFIG.MAX_TITLE_LENGTH) {
+        errors.push(`Title must be ${SECURITY_CONFIG.MAX_TITLE_LENGTH} characters or less`)
+      }
       sanitized.title = sanitizeInput(data.title, {
         maxLength: SECURITY_CONFIG.MAX_TITLE_LENGTH,
         normalizeWhitespace: true
       })
-
-      if (sanitized.title.length > SECURITY_CONFIG.MAX_TITLE_LENGTH) {
-        errors.push(`Title must be ${SECURITY_CONFIG.MAX_TITLE_LENGTH} characters or less`)
-      }
     }
   }
 
@@ -120,7 +119,7 @@ const validateNoteData = (data) => {
         normalizeWhitespace: false // Preserve formatting
       })
 
-      if (sanitized.content.length > SECURITY_CONFIG.MAX_CONTENT_LENGTH) {
+      if (data.content.length > SECURITY_CONFIG.MAX_CONTENT_LENGTH) {
         errors.push(`Content must be ${SECURITY_CONFIG.MAX_CONTENT_LENGTH} characters or less`)
       }
     }
@@ -228,15 +227,15 @@ const validateAIPrompt = (prompt, context = '', connectedNotes = []) => {
       errors.push('Prompt contains suspicious patterns and may be attempting injection')
     }
 
+    if (prompt.length > 5000) {
+      errors.push('Prompt is too long (max 5000 characters)')
+    }
+
     sanitized.prompt = sanitizeInput(prompt, {
       maxLength: 5000,
       stripScripts: true,
       normalizeWhitespace: false
     })
-
-    if (sanitized.prompt.length > 5000) {
-      errors.push('Prompt is too long (max 5000 characters)')
-    }
   }
 
   // Context validation
