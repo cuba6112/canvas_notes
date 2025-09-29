@@ -1,46 +1,21 @@
 [
   {
     "title": "",
-    "content": "T",
+    "content": "New note",
     "position": {
-      "x": 58,
-      "y": 318
-    },
-    "dimensions": {
-      "width": 300,
-      "height": 150
-    },
-    "color": "#fce7f3",
-    "tags": [],
-    "aiGenerated": false,
-    "connections": [],
-    "id": "1759110661724",
-    "createdAt": "2025-09-29T01:51:01.724Z",
-    "updatedAt": "2025-09-29T04:04:21.040Z",
-    "_stableId": "stable-1759110661722-386q84iy8",
-    "_isTemporary": false,
-    "_stableKey": "stable-1759110661722-386q84iy8"
-  },
-  {
-    "title": "",
-    "content": "",
-    "position": {
-      "x": -404,
-      "y": -236
+      "x": 515,
+      "y": 326.5
     },
     "dimensions": {
       "width": 300,
       "height": 200
     },
-    "color": "#ffccbc",
+    "color": "#fff9c4",
     "tags": [],
     "aiGenerated": false,
     "connections": [],
-    "id": "1759114973780",
-    "createdAt": "2025-09-29T03:02:53.780Z",
-    "updatedAt": "2025-09-29T03:03:28.125Z",
-    "_stableId": "stable-1759114973761-fzbun5bgs",
-    "_isTemporary": false,
-    "_stableKey": "stable-1759114973761-fzbun5bgs"
+    "id": "1759149606455",
+    "createdAt": "2025-09-29T12:40:06.456Z",
+    "updatedAt": "2025-09-29T12:40:06.456Z"
   }
 ]
