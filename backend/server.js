@@ -201,8 +201,28 @@ app.post('/api/notes', security.validateNote, async (req, res) => {
       ...req.body,
       id: req.body.id || Date.now().toString(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      connections: req.body.connections || [] // Ensure connections is an array
     }
+
+    // Ensure all connections are unique
+    newNote.connections = [...new Set(newNote.connections)]
+
+    // Update existing notes to include connection to the new note
+    if (newNote.connections.length > 0) {
+      notes.forEach(note => {
+        if (newNote.connections.includes(note.id)) {
+          // Add new note's ID to the existing note's connections if not already present
+          if (!note.connections) {
+            note.connections = []
+          }
+          if (!note.connections.includes(newNote.id)) {
+            note.connections.push(newNote.id)
+          }
+        }
+      })
+    }
+
     notes.push(newNote)
 
     const writeSuccess = await writeNotes(notes)
@@ -224,25 +244,54 @@ app.post('/api/notes', security.validateNote, async (req, res) => {
 app.put('/api/notes/:id', security.validateNote, async (req, res) => {
   try {
     const notes = await readNotes()
-    const index = notes.findIndex(n => n.id === req.params.id)
+    const noteId = req.params.id
+    const index = notes.findIndex(n => n.id === noteId)
 
     if (index === -1) {
       return res.status(404).json({ error: 'Note not found' })
     }
 
-    notes[index] = {
-      ...notes[index],
+    const originalNote = { ...notes[index] }
+    const originalConnections = new Set(originalNote.connections || [])
+    const newConnections = new Set(req.body.connections || [])
+
+    const updatedNote = {
+      ...originalNote,
       ...req.body,
-      id: req.params.id, // Ensure ID doesn't change
-      updatedAt: new Date().toISOString()
+      id: noteId, // Ensure ID doesn't change
+      updatedAt: new Date().toISOString(),
+      connections: Array.from(newConnections) // Store new connections
     }
+
+    // Update the note in the array
+    notes[index] = updatedNote
+
+    // Sync connections with other notes
+    const addedConnections = [...newConnections].filter(id => !originalConnections.has(id))
+    const removedConnections = [...originalConnections].filter(id => !newConnections.has(id))
+
+    notes.forEach(note => {
+      // Add new connection to the other note
+      if (addedConnections.includes(note.id)) {
+        if (!note.connections) note.connections = []
+        if (!note.connections.includes(noteId)) {
+          note.connections.push(noteId)
+        }
+      }
+      // Remove connection from the other note
+      if (removedConnections.includes(note.id)) {
+        if (note.connections) {
+          note.connections = note.connections.filter(id => id !== noteId)
+        }
+      }
+    })
 
     const writeSuccess = await writeNotes(notes)
     if (!writeSuccess) {
       return res.status(500).json({ error: 'Failed to update note' })
     }
 
-    res.json(notes[index])
+    res.json(updatedNote)
   } catch (error) {
     logSecurityEvent('error', 'note_update_failed', {
       ip: req.ip,
@@ -256,15 +305,29 @@ app.put('/api/notes/:id', security.validateNote, async (req, res) => {
 
 app.delete('/api/notes/:id', async (req, res) => {
   try {
-    const notes = await readNotes()
-    const initialLength = notes.length
-    const filteredNotes = notes.filter(n => n.id !== req.params.id)
+    let notes = await readNotes()
+    const noteIdToDelete = req.params.id
 
-    if (filteredNotes.length === initialLength) {
+    const noteExists = notes.some(n => n.id === noteIdToDelete)
+    if (!noteExists) {
       return res.status(404).json({ error: 'Note not found' })
     }
 
-    const writeSuccess = await writeNotes(filteredNotes)
+    // Remove the note itself
+    let updatedNotes = notes.filter(n => n.id !== noteIdToDelete)
+
+    // Remove connections to the deleted note from other notes
+    updatedNotes = updatedNotes.map(note => {
+      if (note.connections && note.connections.includes(noteIdToDelete)) {
+        return {
+          ...note,
+          connections: note.connections.filter(id => id !== noteIdToDelete)
+        }
+      }
+      return note
+    })
+
+    const writeSuccess = await writeNotes(updatedNotes)
     if (!writeSuccess) {
       return res.status(500).json({ error: 'Failed to delete note' })
     }
