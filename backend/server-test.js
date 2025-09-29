@@ -78,18 +78,25 @@ app.use(helmet({
   }
 }))
 
-// Rate limiting for testing (more permissive)
+// Rate limiting for testing (very permissive to allow tests to run)
+// Using a much higher limit to prevent test interference
 const limiter = rateLimit({
-  windowMs: 1000, // 1 second for faster tests
-  max: 100,
+  windowMs: 1000, // 1 second
+  max: (req) => {
+    // Use lower limit when specifically testing rate limits
+    return req.headers['x-test-rate-limit'] ? 100 : 10000
+  },
   standardHeaders: true,
   legacyHeaders: false
 })
 app.use(limiter)
 
 const aiLimiter = rateLimit({
-  windowMs: 1000, // 1 second for faster tests
-  max: 10
+  windowMs: 1000, // 1 second
+  max: (req) => {
+    // Use lower limit when specifically testing AI rate limits
+    return req.headers['x-test-ai-rate-limit'] ? 10 : 10000
+  }
 })
 
 // JSON parsing

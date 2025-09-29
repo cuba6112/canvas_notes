@@ -8,8 +8,6 @@ const Toolbar = ({ minimapVisible, onToggleMinimap }) => {
     duplicateNote,
     focusOnSelectedNotes,
     resetView,
-    startConnection,
-    isConnecting,
     centerOnNotes,
     notes,
     createNote
@@ -130,29 +128,6 @@ const Toolbar = ({ minimapVisible, onToggleMinimap }) => {
           🗺️
         </button>
       </div>
-
-      {/* Connection Tool */}
-      <button
-        onClick={() => {
-          if (selectedNotes.length > 0) {
-            startConnection()
-          }
-        }}
-        disabled={selectedNotes.length === 0}
-        style={{
-          padding: '8px 12px',
-          background: isConnecting ? '#FF9800' : selectedNotes.length > 0 ? '#2196F3' : '#e9ecef',
-          color: isConnecting || selectedNotes.length > 0 ? 'white' : '#666',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '12px',
-          fontWeight: '600',
-          cursor: selectedNotes.length > 0 ? 'pointer' : 'not-allowed'
-        }}
-        title={isConnecting ? 'Click target note to connect' : 'Select a note first, then click to start connecting'}
-      >
-        {isConnecting ? '🔗 Connecting...' : '🔗 Connect'}
-      </button>
 
       {/* Selection Info & Actions */}
       {selectedNotes.length > 0 && (

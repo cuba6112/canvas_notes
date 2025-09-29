@@ -31,7 +31,8 @@ export const usePerformanceMonitor = (componentName) => {
         renderNumber: renderCount.current
       })
     }
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return {
     trackComponentError: (error, context) => trackError(error, { component: componentName, ...context }),

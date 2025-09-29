@@ -66,6 +66,7 @@ export const useMultiSelectDrag = () => {
   /**
    * Update positions of all follower notes during drag
    */
+  // eslint-disable-next-line no-unused-vars
   const updateFollowerPositions = useCallback((leaderPosition, getStageRef, selectedNoteIds) => {
     const followerPositions = calculateFollowerPositions(leaderPosition)
     const stage = getStageRef()?.current

@@ -12,7 +12,6 @@ const OptimizedNote = memo(({
   onDelete,
   isSelected,
   onSelect,
-  zIndex,
   onDragChange,
   levelOfDetail = { level: 'high', renderText: true, renderShadows: true, renderDetails: true }
 }) => {
@@ -26,7 +25,6 @@ const OptimizedNote = memo(({
     height: note.dimensions?.height || 200
   })
   const [isSaving, setIsSaving] = useState(false)
-  const [isResizing, setIsResizing] = useState(false)
   const [showContextMenu, setShowContextMenu] = useState(false)
 
   const groupRef = useRef()
@@ -97,7 +95,7 @@ const OptimizedNote = memo(({
         x={position.x}
         y={position.y}
         draggable={!isEditing}
-        onDragStart={(e) => {
+        onDragStart={() => {
           setIsDragging(true)
           onDragChange?.(true)
           onSelect?.()
@@ -216,7 +214,6 @@ const OptimizedNote = memo(({
           fill="rgba(99, 102, 241, 0.6)"
           cornerRadius={1}
           draggable={true}
-          onDragStart={() => setIsResizing(true)}
           onDragMove={(e) => {
             const newWidth = Math.max(200, noteSize.width + e.target.x())
             const newHeight = Math.max(150, noteSize.height + e.target.y())
@@ -224,7 +221,6 @@ const OptimizedNote = memo(({
             e.target.position({ x: 0, y: 0 })
           }}
           onDragEnd={async () => {
-            setIsResizing(false)
             try {
               await onUpdate({ ...note, dimensions: noteSize })
             } catch (error) {

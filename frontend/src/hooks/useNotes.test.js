@@ -92,8 +92,10 @@ describe('useNotes', () => {
         expect(error.message).toBe('Create failed')
       }
 
-      expect(result.current.notes).toEqual([])
-      expect(result.current.error).toBe('Create failed')
+      await waitFor(() => {
+        expect(result.current.notes).toEqual([])
+        expect(result.current.error).toBe('Create failed')
+      })
     })
   })
 
@@ -148,7 +150,7 @@ describe('useNotes', () => {
   })
 
   describe('searchNotes', () => {
-    it('should filter notes by search term', () => {
+    it('should filter notes by search term', async () => {
       const notes = [
         { id: '1', title: 'JavaScript Tutorial', content: 'Learn JS', tags: ['coding'] },
         { id: '2', title: 'React Guide', content: 'Learn React', tags: ['frontend'] },
@@ -158,28 +160,30 @@ describe('useNotes', () => {
       const { result } = renderHook(() => useNotes())
       result.current.setNotes(notes)
 
-      // Search by title
-      expect(result.current.searchNotes('react')).toHaveLength(1)
-      expect(result.current.searchNotes('react')[0].title).toBe('React Guide')
+      await waitFor(() => {
+        // Search by title
+        expect(result.current.searchNotes('react')).toHaveLength(1)
+        expect(result.current.searchNotes('react')[0].title).toBe('React Guide')
 
-      // Search by content
-      expect(result.current.searchNotes('node')).toHaveLength(1)
-      expect(result.current.searchNotes('node')[0].title).toBe('Backend API')
+        // Search by content
+        expect(result.current.searchNotes('node')).toHaveLength(1)
+        expect(result.current.searchNotes('node')[0].title).toBe('Backend API')
 
-      // Search by tag
-      expect(result.current.searchNotes('frontend')).toHaveLength(1)
-      expect(result.current.searchNotes('frontend')[0].title).toBe('React Guide')
+        // Search by tag
+        expect(result.current.searchNotes('frontend')).toHaveLength(1)
+        expect(result.current.searchNotes('frontend')[0].title).toBe('React Guide')
 
-      // No search term returns all notes
-      expect(result.current.searchNotes('')).toHaveLength(3)
+        // No search term returns all notes
+        expect(result.current.searchNotes('')).toHaveLength(3)
 
-      // No matches
-      expect(result.current.searchNotes('python')).toHaveLength(0)
+        // No matches
+        expect(result.current.searchNotes('python')).toHaveLength(0)
+      })
     })
   })
 
   describe('findNoteById', () => {
-    it('should find note by id', () => {
+    it('should find note by id', async () => {
       const notes = [
         { id: '1', title: 'Note 1' },
         { id: '2', title: 'Note 2' }
@@ -188,9 +192,11 @@ describe('useNotes', () => {
       const { result } = renderHook(() => useNotes())
       result.current.setNotes(notes)
 
-      expect(result.current.findNoteById('1')).toEqual(notes[0])
-      expect(result.current.findNoteById('2')).toEqual(notes[1])
-      expect(result.current.findNoteById('3')).toBeUndefined()
+      await waitFor(() => {
+        expect(result.current.findNoteById('1')).toEqual(notes[0])
+        expect(result.current.findNoteById('2')).toEqual(notes[1])
+        expect(result.current.findNoteById('3')).toBeUndefined()
+      })
     })
   })
 })

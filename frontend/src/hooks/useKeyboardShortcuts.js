@@ -27,8 +27,7 @@ export const useKeyboardShortcuts = ({
     centerOnNotes,
     notes,
     handleNoteSelect,
-    clearSelection,
-    createNote
+    clearSelection
   } = useNotesContext()
 
   const isEditingRef = useRef(false)
@@ -48,7 +47,7 @@ export const useKeyboardShortcuts = ({
     const zoomFactor = 1.2
 
     switch (key) {
-      case 'ArrowUp':
+      case 'ArrowUp': {
         const newPosUp = {
           x: stagePosition.x,
           y: stagePosition.y + panAmount
@@ -57,8 +56,9 @@ export const useKeyboardShortcuts = ({
         setStagePosition(newPosUp)
         stage.batchDraw()
         return true
+      }
 
-      case 'ArrowDown':
+      case 'ArrowDown': {
         const newPosDown = {
           x: stagePosition.x,
           y: stagePosition.y - panAmount
@@ -67,8 +67,9 @@ export const useKeyboardShortcuts = ({
         setStagePosition(newPosDown)
         stage.batchDraw()
         return true
+      }
 
-      case 'ArrowLeft':
+      case 'ArrowLeft': {
         const newPosLeft = {
           x: stagePosition.x + panAmount,
           y: stagePosition.y
@@ -77,8 +78,9 @@ export const useKeyboardShortcuts = ({
         setStagePosition(newPosLeft)
         stage.batchDraw()
         return true
+      }
 
-      case 'ArrowRight':
+      case 'ArrowRight': {
         const newPosRight = {
           x: stagePosition.x - panAmount,
           y: stagePosition.y
@@ -87,6 +89,7 @@ export const useKeyboardShortcuts = ({
         setStagePosition(newPosRight)
         stage.batchDraw()
         return true
+      }
 
       case '=':
       case '+':
@@ -303,7 +306,7 @@ export const useKeyboardShortcuts = ({
       return
     }
 
-    const { key, ctrlKey, metaKey, shiftKey, altKey } = event
+    const { key, ctrlKey, metaKey, shiftKey } = event
     const commandKey = ctrlKey || metaKey // Handle both Ctrl (Windows) and Cmd (Mac)
 
     // Track command key state for combination detection

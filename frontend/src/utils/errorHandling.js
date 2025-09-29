@@ -38,8 +38,8 @@ export const logError = (error, context = {}) => {
 
   console.error('Application Error:', errorInfo)
 
-  // In production, you might want to send this to a logging service
-  if (process.env.NODE_ENV === 'production') {
+  // In production, send to logging service (Vite's PROD flag)
+  if (import.meta.env.PROD) {
     // Example: sendToLoggingService(errorInfo)
   }
 

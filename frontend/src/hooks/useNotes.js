@@ -219,20 +219,24 @@ export const useNotes = () => {
     }
   }, [notes])
 
+  // Use a ref to store latest notes for search/find operations
+  const notesRef = useRef(notes)
+  notesRef.current = notes
+
   const findNoteById = useCallback((id) => {
-    return notes.find(note => note.id === id)
-  }, [notes])
+    return notesRef.current.find(note => note.id === id)
+  }, [])
 
   const searchNotes = useCallback((searchTerm) => {
-    if (!searchTerm) return notes
+    if (!searchTerm || !searchTerm.trim()) return notesRef.current
 
     const term = searchTerm.toLowerCase()
-    return notes.filter(note =>
+    return notesRef.current.filter(note =>
       note.title?.toLowerCase().includes(term) ||
       note.content?.toLowerCase().includes(term) ||
       note.tags?.some(tag => tag.toLowerCase().includes(term))
     )
-  }, [notes])
+  }, [])
 
   return {
     notes,

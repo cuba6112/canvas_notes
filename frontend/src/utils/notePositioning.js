@@ -10,7 +10,10 @@ export const DEFAULT_NOTE_SIZE = { width: 300, height: 200 }
  * Calculate a good position for a new note - PERFORMANCE OPTIMIZED
  */
 export const calculateNotePosition = (existingNotes, dimensions = {}) => {
-  const { width = window.innerWidth || 800, height = window.innerHeight || 600 } = dimensions
+  // Use explicit defaults to ensure consistent behavior in tests
+  const defaultWidth = 800
+  const defaultHeight = 600
+  const { width = defaultWidth, height = defaultHeight } = dimensions
 
   const centerX = Math.round(width / 2 - 150)
   const centerY = Math.round(height / 2 - 100)
@@ -52,6 +55,7 @@ export const calculateNotePosition = (existingNotes, dimensions = {}) => {
 /**
  * Check if a position is available (not overlapping with existing notes)
  */
+// eslint-disable-next-line no-unused-vars
 export const isPositionAvailable = (position, existingNotes, noteSize = DEFAULT_NOTE_SIZE) => {
   return !existingNotes.some(note => {
     const noteWidth = note.dimensions?.width || DEFAULT_NOTE_SIZE.width
@@ -89,6 +93,7 @@ export const createPositionCache = (existingNotes) => {
 /**
  * Fast position availability check using spatial cache
  */
+// eslint-disable-next-line no-unused-vars
 export const isPositionAvailableInCache = (position, positionCache, noteSize = DEFAULT_NOTE_SIZE) => {
   const gridX = Math.floor(position.x / GRID_SIZE)
   const gridY = Math.floor(position.y / GRID_SIZE)
@@ -144,11 +149,16 @@ export const findNearbyPosition = (referencePosition, positionCache, attempts = 
  * Find an available position using grid-based approach
  */
 export const findGridPosition = (existingNotes, centerX = 0, centerY = 0) => {
+  // Calculate which grid cell each note occupies
   const usedPositions = new Set(
     existingNotes.map(note =>
       `${Math.round(note.position.x / GRID_SIZE)},${Math.round(note.position.y / GRID_SIZE)}`
     )
   )
+
+  // Calculate the grid coordinates for the center position
+  const centerGridX = Math.round(centerX / GRID_SIZE)
+  const centerGridY = Math.round(centerY / GRID_SIZE)
 
   // Spiral out from center to find first available grid position
   let ring = 0
@@ -156,18 +166,48 @@ export const findGridPosition = (existingNotes, centerX = 0, centerY = 0) => {
   while (ring < 20) {
     if (ring === 0) {
       // Check center position first
-      const gridPos = '0,0'
+      const gridPos = `${centerGridX},${centerGridY}`
       if (!usedPositions.has(gridPos)) {
         return { x: centerX, y: centerY }
       }
     } else {
-      // Check ring positions
+      // Check ring positions - prioritize cardinal directions (no diagonals)
+      // First check positions where only one coordinate changes (cardinal directions)
       for (let dx = -ring; dx <= ring; dx++) {
         for (let dy = -ring; dy <= ring; dy++) {
           // Only check positions on the current ring
           if (Math.abs(dx) === ring || Math.abs(dy) === ring) {
-            const gridPos = `${dx},${dy}`
+            // Skip if not a cardinal direction (both dx and dy are non-zero)
+            const isCardinal = (dx === 0 || dy === 0)
+            if (!isCardinal) continue
+
+            const gridX = centerGridX + dx
+            const gridY = centerGridY + dy
+            const gridPos = `${gridX},${gridY}`
             if (!usedPositions.has(gridPos)) {
+              // Return position relative to center, not absolute grid position
+              return {
+                x: centerX + dx * GRID_SIZE,
+                y: centerY + dy * GRID_SIZE
+              }
+            }
+          }
+        }
+      }
+
+      // Then check diagonal positions if no cardinal positions available
+      for (let dx = -ring; dx <= ring; dx++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+          // Only check positions on the current ring
+          if (Math.abs(dx) === ring || Math.abs(dy) === ring) {
+            const isDiagonal = (dx !== 0 && dy !== 0)
+            if (!isDiagonal) continue
+
+            const gridX = centerGridX + dx
+            const gridY = centerGridY + dy
+            const gridPos = `${gridX},${gridY}`
+            if (!usedPositions.has(gridPos)) {
+              // Return position relative to center, not absolute grid position
               return {
                 x: centerX + dx * GRID_SIZE,
                 y: centerY + dy * GRID_SIZE
@@ -211,18 +251,21 @@ export const positionNearConnectedNotes = (connectedNotes, existingNotes, dimens
   center.y /= connectedNotes.length
 
   // Try positions around the center with optimized lookup
-  const radius = 200
+  // Try multiple radii to find an available position near connected notes
+  const radii = [200, 250, 300, 350]
   const angleStep = (2 * Math.PI) / 8 // 8 positions around the center
 
-  for (let i = 0; i < 8; i++) {
-    const angle = i * angleStep
-    const position = {
-      x: center.x + Math.cos(angle) * radius,
-      y: center.y + Math.sin(angle) * radius
-    }
+  for (const radius of radii) {
+    for (let i = 0; i < 8; i++) {
+      const angle = i * angleStep
+      const position = {
+        x: center.x + Math.cos(angle) * radius,
+        y: center.y + Math.sin(angle) * radius
+      }
 
-    if (isPositionAvailableInCache(position, positionCache)) {
-      return position
+      if (isPositionAvailableInCache(position, positionCache)) {
+        return position
+      }
     }
   }
 

@@ -8,6 +8,7 @@ const { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } = req
 const app = require('../server-test') // We'll need to create this
 const fs = require('fs').promises
 const path = require('path')
+const crypto = require('crypto')
 const {
   sanitizeInput,
   validateNoteData,
@@ -29,6 +30,16 @@ jest.mock('ollama', () => ({
 describe('Backend Security Test Suite', () => {
   const TEST_NOTES_FILE = path.join(__dirname, 'test-notes.json')
 
+  // Helper function to write test files with checksums
+  const writeTestFileWithChecksum = async (filePath, data) => {
+    const dataString = JSON.stringify(data)
+    await fs.writeFile(filePath, dataString, 'utf8')
+
+    // Generate and save checksum
+    const checksum = crypto.createHash('sha256').update(dataString, 'utf8').digest('hex')
+    await fs.writeFile(filePath + '.checksum', checksum, 'utf8')
+  }
+
   beforeAll(async () => {
     // Setup test environment
     process.env.NOTES_FILE = TEST_NOTES_FILE
@@ -37,16 +48,21 @@ describe('Backend Security Test Suite', () => {
   afterAll(async () => {
     // Cleanup test files
     try {
-      await fs.unlink(TEST_NOTES_FILE)
-      await fs.unlink(TEST_NOTES_FILE + '.checksum')
+      await fs.unlink(TEST_NOTES_FILE).catch(() => {})
+      await fs.unlink(TEST_NOTES_FILE + '.checksum').catch(() => {})
+
+      // Clean up any backup files
+      const files = await fs.readdir(__dirname)
+      const backupFiles = files.filter(f => f.startsWith('test-notes.json.backup'))
+      await Promise.all(backupFiles.map(f => fs.unlink(path.join(__dirname, f)).catch(() => {})))
     } catch (error) {
       // Files might not exist
     }
   })
 
   beforeEach(async () => {
-    // Reset notes file before each test
-    await fs.writeFile(TEST_NOTES_FILE, JSON.stringify([]))
+    // Reset notes file before each test with proper checksum
+    await writeTestFileWithChecksum(TEST_NOTES_FILE, [])
   })
 
   describe('Input Validation Security', () => {
@@ -310,11 +326,12 @@ describe('Backend Security Test Suite', () => {
     it('should enforce API rate limits', async () => {
       const requests = []
 
-      // Make many requests quickly
+      // Make many requests quickly with rate limit test header
       for (let i = 0; i < 105; i++) { // Exceeds limit of 100
         requests.push(
           request(app)
             .get('/api/notes')
+            .set('x-test-rate-limit', 'true')
         )
       }
 
@@ -328,11 +345,12 @@ describe('Backend Security Test Suite', () => {
     it('should enforce AI-specific rate limits', async () => {
       const aiRequests = []
 
-      // Make many AI requests quickly
+      // Make many AI requests quickly with AI rate limit test header
       for (let i = 0; i < 12; i++) { // Exceeds AI limit of 10
         aiRequests.push(
           request(app)
             .post('/api/ai/generate')
+            .set('x-test-ai-rate-limit', 'true')
             .send({ prompt: `Test prompt ${i}` })
         )
       }
