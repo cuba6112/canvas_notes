@@ -17,7 +17,7 @@ function App() {
 }
 
 function AppContent({ searchTerm, onSearchChange }) {
-  const { notes, searchNotes } = useNotesContext()
+  const { searchNotes } = useNotesContext()
 
   const filteredNotes = searchNotes(searchTerm)
 

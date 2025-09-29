@@ -7,6 +7,7 @@ class ErrorBoundary extends Component {
     this.state = { hasError: false, error: null, errorInfo: null }
   }
 
+  // eslint-disable-next-line no-unused-vars
   static getDerivedStateFromError(error) {
     return { hasError: true }
   }
@@ -115,7 +116,8 @@ class ErrorBoundary extends Component {
               </button>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {/* Show error details only in development mode */}
+            {import.meta.env.DEV && this.state.error && (
               <details style={{ marginTop: '30px', textAlign: 'left' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: '600', marginBottom: '10px' }}>
                   Error Details (Development Only)

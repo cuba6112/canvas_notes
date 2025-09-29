@@ -15,10 +15,10 @@ const SECURITY_CONFIG = {
   MAX_TAGS_COUNT: 10,
   MAX_COLOR_LENGTH: 20,
   // Development-friendly rate limits for enhanced drag system
-  RATE_LIMIT_WINDOW: process.env.NODE_ENV === 'development' ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 min dev, 15 min prod
-  RATE_LIMIT_MAX: process.env.NODE_ENV === 'development' ? 1000 : 100, // 1000 dev, 100 prod
+  RATE_LIMIT_WINDOW: process.env.NODE_ENV === 'test' ? 1 * 60 * 1000 : process.env.NODE_ENV === 'development' ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 min test/dev, 15 min prod
+  RATE_LIMIT_MAX: process.env.NODE_ENV === 'test' ? 10000 : process.env.NODE_ENV === 'development' ? 1000 : 100, // 10000 test, 1000 dev, 100 prod
   AI_RATE_LIMIT_WINDOW: 10 * 60 * 1000, // 10 minutes
-  AI_RATE_LIMIT_MAX: 10
+  AI_RATE_LIMIT_MAX: process.env.NODE_ENV === 'test' ? 1000 : 10 // 1000 test, 10 prod/dev
 }
 
 /**

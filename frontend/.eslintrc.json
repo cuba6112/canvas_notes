@@ -1,8 +1,25 @@
 {
   "env": {
     "browser": true,
-    "es2021": true
+    "es2021": true,
+    "node": true
   },
+  "overrides": [
+    {
+      "files": ["**/*.test.js", "**/*.test.jsx", "**/__tests__/**"],
+      "globals": {
+        "describe": "readonly",
+        "it": "readonly",
+        "expect": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly",
+        "vi": "readonly",
+        "test": "readonly"
+      }
+    }
+  ],
   "extends": [
     "eslint:recommended",
     "plugin:react/recommended",

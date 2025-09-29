@@ -22,7 +22,7 @@ const HTML_ENTITIES = {
  */
 export const escapeHtml = (text) => {
   if (!text || typeof text !== 'string') return ''
-  return text.replace(/[&<>"'`=\/]/g, (char) => HTML_ENTITIES[char])
+  return text.replace(/[&<>"'`=/]/g, (char) => HTML_ENTITIES[char])
 }
 
 /**
@@ -47,9 +47,6 @@ export const sanitizeMarkdown = (content) => {
 
   // Remove style tags
   sanitized = sanitized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-
-  // Limit to safe HTML tags only
-  const allowedTags = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre']
 
   return sanitized
 }
@@ -172,8 +169,8 @@ export const monitorContentSecurity = (content, context = {}) => {
       contentPreview: content.slice(0, 100) + '...'
     })
 
-    // In production, send to security monitoring service
-    if (process.env.NODE_ENV === 'production') {
+    // In production, send to security monitoring service (Vite's PROD flag)
+    if (import.meta.env.PROD) {
       // Example: sendToSecurityService({ timestamp, context, violations: security.violations })
     }
   }

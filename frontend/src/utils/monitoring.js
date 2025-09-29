@@ -12,7 +12,8 @@ const MONITORING_CONFIG = {
   FLUSH_INTERVAL: 30000,     // Flush events every 30 seconds
   PERFORMANCE_SAMPLE_RATE: 0.1, // Sample 10% of performance events
   ERROR_SAMPLE_RATE: 1.0,    // Sample 100% of errors
-  DEBUG_MODE: process.env.NODE_ENV === 'development'
+  // Use Vite's built-in DEV flag for development mode detection
+  DEBUG_MODE: import.meta.env.DEV
 }
 
 /**
@@ -60,8 +61,8 @@ class EventBuffer {
     if (!this.isFlushingEnabled) return
 
     try {
-      // In production, send to monitoring service
-      if (process.env.NODE_ENV === 'production') {
+      // In production, send to monitoring service (Vite's PROD flag)
+      if (import.meta.env.PROD) {
         // Example: await fetch('/api/monitoring/events', { method: 'POST', body: JSON.stringify(events) })
       }
 

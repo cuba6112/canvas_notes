@@ -24,17 +24,16 @@ const Canvas = ({ filteredNotes }) => {
     stagePosition,
     selectedNote,
     selectedNotes,
-    isConnecting,
-    connectingFrom,
     draggingNotes,
     handleWheel,
     handleStageDrag,
-    resetView,
     handleNoteDragChange,
     handleNoteSelect,
     clearSelection,
-    startConnection,
     addConnection,
+    removeConnection,
+    getConnectedNotes,
+    getConnectedSubgraph,
     updateNote,
     deleteNote: deleteNoteWithCleanup,
     createNote,
@@ -43,7 +42,7 @@ const Canvas = ({ filteredNotes }) => {
     clearError
   } = useNotesContext()
 
-  const { success, error: showError, NotificationsContainer } = useNotifications()
+  const { error: showError, NotificationsContainer } = useNotifications()
 
   const [dimensions, setDimensions] = useState({
     width: 800,
@@ -53,6 +52,8 @@ const Canvas = ({ filteredNotes }) => {
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false)
   const [showAIAssistant, setShowAIAssistant] = useState(false)
+  const [connectionMode, setConnectionMode] = useState(null) // { fromNoteId, fromPort, startPos }
+  const [tempConnectionLine, setTempConnectionLine] = useState(null) // { fromPos, toPos }
 
   // Show notifications for errors
   useEffect(() => {
@@ -177,7 +178,7 @@ const Canvas = ({ filteredNotes }) => {
     onToggleHelp: () => setShowShortcutsHelp(!showShortcutsHelp)
   })
 
-  const { measureRenderTime, throttle } = usePerformanceMonitor()
+  const { throttle } = usePerformanceMonitor()
 
   // Performance-based rendering optimization with hysteresis
   const shouldUseOptimizedRendering = useMemo(() => {
@@ -214,14 +215,7 @@ const Canvas = ({ filteredNotes }) => {
     }
   }
 
-  // Note creation is now handled by the context
-  const addNote = async () => {
-    try {
-      await createNote({}, { dimensions })
-    } catch (error) {
-      console.error('Error creating note:', error)
-    }
-  }
+  // Note: addNote function removed - use createNote directly from context
 
 
 
@@ -237,6 +231,93 @@ const Canvas = ({ filteredNotes }) => {
       addConnection(result.from, result.to)
     }
   }
+
+  // Connection node handlers
+  const handleStartConnection = useCallback((noteId, port) => {
+    console.log('[Canvas] Starting connection from', noteId, port)
+
+    // Find the note and calculate the port position
+    const note = notes.find(n => n.id === noteId)
+    if (!note) return
+
+    const getPortPosition = (note, port) => {
+      const baseX = note.position.x
+      const baseY = note.position.y
+      const width = note.dimensions.width
+      const height = note.dimensions.height
+
+      switch (port) {
+        case 'top':
+          return { x: baseX + width / 2, y: baseY }
+        case 'right':
+          return { x: baseX + width, y: baseY + height / 2 }
+        case 'bottom':
+          return { x: baseX + width / 2, y: baseY + height }
+        case 'left':
+          return { x: baseX, y: baseY + height / 2 }
+        default:
+          return { x: baseX + width / 2, y: baseY + height / 2 }
+      }
+    }
+
+    const startPos = getPortPosition(note, port)
+    setConnectionMode({ fromNoteId: noteId, fromPort: port, startPos })
+    setTempConnectionLine({ fromPos: startPos, toPos: startPos })
+    document.body.style.cursor = 'crosshair'
+    console.log('[Canvas] Connection mode set:', { fromNoteId: noteId, fromPort: port, startPos })
+  }, [notes])
+
+  const handleCompleteConnection = useCallback((toNoteId, toPort) => {
+    console.log('[Canvas] Completing connection to', toNoteId, toPort)
+    console.log('[Canvas] Current connection mode:', connectionMode)
+    if (connectionMode && connectionMode.fromNoteId !== toNoteId) {
+      console.log('[Canvas] Creating connection:', {
+        from: connectionMode.fromNoteId,
+        to: toNoteId,
+        fromPort: connectionMode.fromPort,
+        toPort
+      })
+      addConnection(
+        connectionMode.fromNoteId,
+        toNoteId,
+        connectionMode.fromPort,
+        toPort
+      )
+    } else if (!connectionMode) {
+      console.log('[Canvas] ERROR: connectionMode is null')
+    } else if (connectionMode.fromNoteId === toNoteId) {
+      console.log('[Canvas] Cannot connect note to itself')
+    }
+    setConnectionMode(null)
+    setTempConnectionLine(null)
+    document.body.style.cursor = 'default'
+  }, [connectionMode, addConnection])
+
+  const handleConnectionDragMove = useCallback((cursorPos) => {
+    if (connectionMode && connectionMode.startPos) {
+      setTempConnectionLine({
+        fromPos: connectionMode.startPos,
+        toPos: cursorPos
+      })
+    }
+  }, [connectionMode])
+
+  const handleCancelConnection = useCallback(() => {
+    setConnectionMode(null)
+    setTempConnectionLine(null)
+    document.body.style.cursor = 'default'
+  }, [])
+
+  // Handle ESC key to cancel connection mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && connectionMode) {
+        handleCancelConnection()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [connectionMode, handleCancelConnection])
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -267,22 +348,99 @@ const Canvas = ({ filteredNotes }) => {
             const fromNote = notes.find(n => n.id === conn.from)
             const toNote = notes.find(n => n.id === conn.to)
             if (!fromNote || !toNote) return null
+
+            // Calculate connection points based on port positions
+            const getPortPosition = (note, port) => {
+              const baseX = note.position.x
+              const baseY = note.position.y
+              const width = note.dimensions.width
+              const height = note.dimensions.height
+
+              switch (port) {
+                case 'top':
+                  return { x: baseX + width / 2, y: baseY }
+                case 'right':
+                  return { x: baseX + width, y: baseY + height / 2 }
+                case 'bottom':
+                  return { x: baseX + width / 2, y: baseY + height }
+                case 'left':
+                  return { x: baseX, y: baseY + height / 2 }
+                default: // 'center'
+                  return { x: baseX + width / 2, y: baseY + height / 2 }
+              }
+            }
+
+            const fromPos = getPortPosition(fromNote, conn.fromPort)
+            const toPos = getPortPosition(toNote, conn.toPort)
+
+            // Calculate control points for smooth curve
+            const dx = toPos.x - fromPos.x
+            const dy = toPos.y - fromPos.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            const curvature = Math.min(distance * 0.3, 100)
+
+            // Create smooth cubic bezier curve
+            const points = [
+              fromPos.x, fromPos.y,
+              fromPos.x + dx * 0.3, fromPos.y - curvature,
+              toPos.x - dx * 0.3, toPos.y - curvature,
+              toPos.x, toPos.y
+            ]
+
             return (
               <Line
                 key={conn.id}
-                points={[
-                  fromNote.position.x + fromNote.dimensions.width / 2,
-                  fromNote.position.y + fromNote.dimensions.height / 2,
-                  toNote.position.x + toNote.dimensions.width / 2,
-                  toNote.position.y + toNote.dimensions.height / 2
-                ]}
-                stroke="rgba(0, 0, 0, 0.2)"
-                strokeWidth={1.5}
+                points={points}
+                stroke="#6366f1"
+                strokeWidth={2}
                 className="note-connection"
-                dash={[5, 5]}
+                opacity={0.6}
+                bezier={true}
+                tension={0.5}
+                lineCap="round"
+                lineJoin="round"
+                shadowColor="rgba(99, 102, 241, 0.3)"
+                shadowBlur={4}
+                shadowOffsetX={0}
+                shadowOffsetY={2}
+                onClick={() => {
+                  // Allow clicking connection to delete it
+                  if (confirm('Remove this connection?')) {
+                    removeConnection(conn.id)
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  e.target.strokeWidth(3)
+                  e.target.opacity(0.9)
+                  stageRef.current.container().style.cursor = 'pointer'
+                }}
+                onMouseLeave={(e) => {
+                  e.target.strokeWidth(2)
+                  e.target.opacity(0.6)
+                  stageRef.current.container().style.cursor = 'default'
+                }}
               />
             )
           })}
+
+          {/* Temporary connection line preview while dragging */}
+          {tempConnectionLine && (
+            <Line
+              points={[
+                tempConnectionLine.fromPos.x,
+                tempConnectionLine.fromPos.y,
+                tempConnectionLine.toPos.x,
+                tempConnectionLine.toPos.y
+              ]}
+              stroke="#10b981"
+              strokeWidth={2}
+              dash={[10, 5]}
+              opacity={0.7}
+              lineCap="round"
+              listening={false}
+            />
+          )}
+
           {(shouldUseOptimizedRendering ? visibleNotes : displayedNotes).map((note, index) => {
             if (!note || !note.id) return null
 
@@ -323,7 +481,12 @@ const Canvas = ({ filteredNotes }) => {
               onBulkNotesUpdate: handleBulkNotesUpdate,
               isBulkDragging: isBulkDragging(),
               // Keyboard shortcuts integration
-              onEditingModeChange: setEditingMode
+              onEditingModeChange: setEditingMode,
+              // Connection node props
+              connectionMode,
+              onStartConnection: handleStartConnection,
+              onCompleteConnection: handleCompleteConnection,
+              onConnectionDragMove: handleConnectionDragMove
             }
 
             return (

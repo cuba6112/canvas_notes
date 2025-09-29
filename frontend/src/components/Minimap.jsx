@@ -194,7 +194,7 @@ const Minimap = ({
     // Draw note count
     const noteCountText = `${notes.length} notes`
     ctx.fillText(noteCountText, 5, 15)
-  }, [notes, stagePosition, stageScale, width, height, getCanvasBounds, getViewportBounds, canvasToMinimap])
+  }, [notes, stagePosition, stageScale, width, height, getCanvasBounds, getViewportBounds, canvasToMinimap, stageRef])
 
   // Handle minimap click for navigation
   const handleMinimapClick = useCallback((event) => {

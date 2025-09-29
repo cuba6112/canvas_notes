@@ -5,12 +5,9 @@ const AIAssistant = () => {
   const {
     notes,
     selectedNotes,
-    connections,
     createAINoteFromPrompt,
     generateQuestions,
     isGeneratingAI,
-    error,
-    clearError,
     getConnectedNotes
   } = useNotesContext()
 
@@ -160,14 +157,31 @@ const AIAssistant = () => {
           {selectedNotes && selectedNotes.length > 0 && (
             <div
               style={{
-                padding: 8,
-                background: '#e8f5e9',
-                borderRadius: 4,
-                marginBottom: 10,
-                fontSize: 12
+                padding: 10,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: 6,
+                marginBottom: 12,
+                fontSize: 12,
+                color: 'white'
               }}
             >
-              📌 Using {getContextNotes().length} notes as context
+              <div style={{ fontWeight: '600', marginBottom: 6 }}>
+                🔗 Connected Knowledge Context
+              </div>
+              <div style={{ opacity: 0.95, fontSize: 11 }}>
+                Using {selectedNotes.length} selected note{selectedNotes.length > 1 ? 's' : ''}
+                {getContextNotes().length > selectedNotes.length &&
+                  ` + ${getContextNotes().length - selectedNotes.length} connected note${getContextNotes().length - selectedNotes.length > 1 ? 's' : ''}`
+                }
+              </div>
+              <div style={{
+                marginTop: 6,
+                fontSize: 10,
+                opacity: 0.85,
+                fontStyle: 'italic'
+              }}>
+                AI will use content from all connected notes as context
+              </div>
             </div>
           )}
 

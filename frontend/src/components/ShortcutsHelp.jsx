@@ -67,7 +67,7 @@ const ShortcutsHelp = ({ isVisible, onClose, shortcuts }) => {
         <div className="shortcuts-content">
           {Object.keys(filteredShortcuts).length === 0 ? (
             <div className="shortcuts-empty">
-              <p>No shortcuts found matching "{searchTerm}"</p>
+              <p>No shortcuts found matching &quot;{searchTerm}&quot;</p>
             </div>
           ) : (
             Object.entries(filteredShortcuts).map(([category, categoryShortcuts]) => (

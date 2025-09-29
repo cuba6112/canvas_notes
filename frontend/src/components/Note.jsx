@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
-import { Group, Rect, Text } from 'react-konva'
+import { Group, Rect } from 'react-konva'
 import { Html } from 'react-konva-utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -7,21 +7,18 @@ import debounce from 'lodash/debounce'
 import { logError, getUserErrorMessage } from '../utils/errorHandling'
 import { sanitizeMarkdown, sanitizeClipboardContent, sanitizeUserInput, monitorContentSecurity } from '../utils/sanitization'
 import { usePerformanceMonitor } from '../hooks/useMonitoring'
-import { measurePerformance } from '../utils/monitoring'
 import { useMomentumDrag } from '../hooks/useMomentumDrag'
+import ConnectionNode from './ConnectionNode'
 
 const Note = ({
   note,
   onUpdate,
   onDelete,
-  onConnect,
   isSelected,
   isMultiSelected = false,
   isDragLeader = false,
   bulkDragStyle = {},
   onSelect,
-  zIndex,
-  isDragging: externalDragging,
   onDragChange,
   // Bulk drag props
   selectedNoteIds = [],
@@ -32,9 +29,13 @@ const Note = ({
   onBulkMomentum,
   onBulkDragComplete,
   onBulkNotesUpdate,
-  isBulkDragging = false,
   // Keyboard shortcuts integration
-  onEditingModeChange
+  onEditingModeChange,
+  // Connection node props
+  connectionMode,
+  onStartConnection,
+  onCompleteConnection,
+  onConnectionDragMove
 }) => {
   // Helper function to safely update notes - now all updates go through useNotes.js validation
   const safeUpdate = useCallback((updatedNote) => {
@@ -48,8 +49,6 @@ const Note = ({
     handleDragStart: momentumDragStart,
     handleDragMove: momentumDragMove,
     handleDragEnd: momentumDragEnd,
-    isAnimating: isMomentumAnimating,
-    stopMomentum,
     calculateVelocity
   } = useMomentumDrag()
 
@@ -96,7 +95,7 @@ const Note = ({
     height: note.dimensions?.height || 200
   })
   const [isSaving, setIsSaving] = useState(false)
-  const [isResizing, setIsResizing] = useState(false)
+  // isResizing removed - only needed for tracking resize state
   const [showContextMenu, setShowContextMenu] = useState(false)
 
   // Track editing mode for keyboard shortcuts
@@ -165,7 +164,6 @@ const Note = ({
   const groupRef = useRef()
   const contentRef = useRef()
   const textareaRef = useRef()
-  const titleRef = useRef()
 
   // Track selection state changes
 
@@ -183,9 +181,9 @@ const Note = ({
       const newHeight = Math.max(80, Math.min(400, scrollHeight))
       element.style.height = newHeight + 'px'
 
-      // Only update note size if it's a significant change and user hasn't manually resized recently
+      // Only update note size if it's a significant change
       const contentHeight = newHeight + 60 // padding for title and margins
-      if (Math.abs(contentHeight - noteSize.height) > 30 && !isResizing) {
+      if (Math.abs(contentHeight - noteSize.height) > 30) {
         const newNoteSize = {
           ...noteSize,
           height: Math.max(150, Math.min(500, contentHeight))
@@ -193,9 +191,9 @@ const Note = ({
         setNoteSize(newNoteSize)
       }
     })
-  }, [noteSize.height, isEditing, isResizing])
+  }, [noteSize.height, isEditing])
 
-  const handleSave = useCallback(measurePerformance('note_save', async () => {
+  const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
       // Use fresh note data to avoid stale ID references
@@ -216,7 +214,7 @@ const Note = ({
       setIsSaving(false)
     }
     setIsEditing(false)
-  }), [title, content, note, onUpdate, trackComponentError, trackComponentAction])
+  }, [title, content, note, onUpdate, trackComponentError, trackComponentAction])
 
   // Auto-resize when content or editing state changes
   useEffect(() => {
@@ -236,7 +234,8 @@ const Note = ({
         safeUpdate({ ...note, dimensions: newDimensions })
       }
     }
-  }, [content, isEditing, autoResizeTextarea, safeUpdate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, isEditing])
 
   // Optimized debounced save with better performance and error handling
   const debouncedSave = useCallback(
@@ -304,22 +303,14 @@ const Note = ({
       y={note.position?.y ?? 0}
       draggable={!isEditing && !showContextMenu}
       // Enhanced event handling for better reliability
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsHovered(true)
-        // Ensure the cursor changes to indicate interactivity
-        if (e.target && e.target.getStage()) {
-          e.target.getStage().container().style.cursor = 'pointer'
-        }
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setIsHovered(false)
-        // Reset cursor
-        if (e.target && e.target.getStage()) {
-          e.target.getStage().container().style.cursor = 'default'
-        }
       }}
       // Additional event for better reliability
-      onMouseMove={(e) => {
+      onMouseMove={() => {
         // Ensure hover state is maintained during movement
         if (!isHovered) {
           setIsHovered(true)
@@ -454,7 +445,6 @@ const Note = ({
         listening={true}
       />
 
-
       {/* Resize handle */}
       {isSelected && !isEditing && !isDragging && (
         <Rect
@@ -465,7 +455,6 @@ const Note = ({
           fill="rgba(99, 102, 241, 0.6)"
           cornerRadius={1}
           draggable={true}
-          onDragStart={() => setIsResizing(true)}
           onDragMove={(e) => {
             const newWidth = Math.max(200, noteSize.width + e.target.x())
             const newHeight = Math.max(150, noteSize.height + e.target.y())
@@ -473,7 +462,6 @@ const Note = ({
             e.target.position({ x: 0, y: 0 })
           }}
           onDragEnd={() => {
-            setIsResizing(false)
             // Use fresh note data to avoid stale ID references
             const updatedNote = {
               ...note,
@@ -502,16 +490,16 @@ const Note = ({
               transition: 'all 0.15s ease',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden',
+              overflow: 'visible',
               paddingTop: '32px', // Account for header
               // Critical fix: Allow pointer events for interaction but forward hover events
               pointerEvents: isEditing ? 'auto' : 'auto'
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={() => {
               // Forward hover events to parent Group
               setIsHovered(true)
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={() => {
               // Forward hover events to parent Group
               setIsHovered(false)
             }}
@@ -668,6 +656,41 @@ const Note = ({
                   ⟲
                 </button>
 
+                {/* Three dots menu button */}
+                {(isHovered || isSelected) && !isEditing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowContextMenu(!showContextMenu)
+                    }}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: 'none',
+                      background: 'transparent',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      transition: 'all 0.1s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(0, 0, 0, 0.1)'
+                      e.target.style.opacity = '1'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'transparent'
+                      e.target.style.opacity = '0.6'
+                    }}
+                    title="More options"
+                  >
+                    ⋯
+                  </button>
+                )}
+
                 {/* Close button */}
                 <button
                   onClick={(e) => {
@@ -709,7 +732,6 @@ const Note = ({
             {isEditing ? (
               <>
                 <input
-                  ref={titleRef}
                   type="text"
                   value={title}
                   onChange={(e) => {
@@ -783,12 +805,6 @@ const Note = ({
                   pointerEvents: 'none',
                   userSelect: 'none'
                 }}
-                onMouseEnter={(e) => {
-                  // Ensure hover events bubble up
-                }}
-                onMouseLeave={(e) => {
-                  // Ensure hover events bubble up
-                }}
               >
                 {title && (
                   <h2 style={{
@@ -854,48 +870,6 @@ const Note = ({
               </div>
             )}
 
-            {/* Three dots menu button */}
-            {(isHovered || isSelected) && !isEditing && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowContextMenu(!showContextMenu)
-                }}
-                style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  width: '20px',
-                  height: '20px',
-                  border: 'none',
-                  background: menuButtonColors.normal.background,
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  color: menuButtonColors.normal.color,
-                  zIndex: 10,
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                  pointerEvents: 'auto',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = menuButtonColors.hover.background
-                  e.target.style.color = menuButtonColors.hover.color
-                  e.target.style.transform = 'scale(1.05)'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = menuButtonColors.normal.background
-                  e.target.style.color = menuButtonColors.normal.color
-                  e.target.style.transform = 'scale(1)'
-                }}
-              >
-                ⋯
-              </button>
-            )}
-
             {/* Context Menu */}
             {showContextMenu && (
               <div
@@ -903,7 +877,7 @@ const Note = ({
                 style={{
                   position: 'absolute',
                   top: '32px',
-                  right: '8px',
+                  right: '-190px',
                   background: 'white',
                   borderRadius: '8px',
                   boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.05)',
@@ -1056,6 +1030,64 @@ const Note = ({
           </div>
         </Html>
       )}
+
+      {/* Connection nodes/ports - MUST be rendered AFTER Html to appear on top */}
+      {(isSelected || isHovered || connectionMode) && !isDragging && (
+        <>
+          <ConnectionNode
+            noteId={note.id}
+            position="top"
+            noteWidth={noteSize.width}
+            noteHeight={noteSize.height}
+            onStartConnection={onStartConnection}
+            onCompleteConnection={onCompleteConnection}
+            onDragMove={onConnectionDragMove}
+            isConnectionMode={connectionMode?.fromNoteId === note.id}
+            isHighlighted={connectionMode && connectionMode.fromNoteId !== note.id}
+            isParentHovered={isHovered}
+            isParentSelected={isSelected}
+          />
+          <ConnectionNode
+            noteId={note.id}
+            position="right"
+            noteWidth={noteSize.width}
+            noteHeight={noteSize.height}
+            onStartConnection={onStartConnection}
+            onCompleteConnection={onCompleteConnection}
+            onDragMove={onConnectionDragMove}
+            isConnectionMode={connectionMode?.fromNoteId === note.id}
+            isHighlighted={connectionMode && connectionMode.fromNoteId !== note.id}
+            isParentHovered={isHovered}
+            isParentSelected={isSelected}
+          />
+          <ConnectionNode
+            noteId={note.id}
+            position="bottom"
+            noteWidth={noteSize.width}
+            noteHeight={noteSize.height}
+            onStartConnection={onStartConnection}
+            onCompleteConnection={onCompleteConnection}
+            onDragMove={onConnectionDragMove}
+            isConnectionMode={connectionMode?.fromNoteId === note.id}
+            isHighlighted={connectionMode && connectionMode.fromNoteId !== note.id}
+            isParentHovered={isHovered}
+            isParentSelected={isSelected}
+          />
+          <ConnectionNode
+            noteId={note.id}
+            position="left"
+            noteWidth={noteSize.width}
+            noteHeight={noteSize.height}
+            onStartConnection={onStartConnection}
+            onCompleteConnection={onCompleteConnection}
+            onDragMove={onConnectionDragMove}
+            isConnectionMode={connectionMode?.fromNoteId === note.id}
+            isHighlighted={connectionMode && connectionMode.fromNoteId !== note.id}
+            isParentHovered={isHovered}
+            isParentSelected={isSelected}
+          />
+        </>
+      )}
     </Group>
   )
 }
@@ -1066,8 +1098,6 @@ export default memo(Note, (prevProps, nextProps) => {
   return (
     prevProps.note.id === nextProps.note.id &&
     prevProps.note.updatedAt === nextProps.note.updatedAt &&
-    prevProps.isSelected === nextProps.isSelected &&
-    prevProps.levelOfDetail === nextProps.levelOfDetail &&
-    prevProps.zIndex === nextProps.zIndex
+    prevProps.isSelected === nextProps.isSelected
   )
 })

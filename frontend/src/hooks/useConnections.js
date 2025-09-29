@@ -4,26 +4,37 @@ import { v4 as uuidv4 } from 'uuid'
 export const useConnections = () => {
   const [connections, setConnections] = useState([])
 
-  const addConnection = useCallback((fromId, toId) => {
+  const addConnection = useCallback((fromId, toId, fromPort, toPort) => {
     // Prevent duplicate connections and self-connections
     if (fromId === toId) return null
 
-    const exists = connections.some(conn =>
-      (conn.from === fromId && conn.to === toId) ||
-      (conn.from === toId && conn.to === fromId)
-    )
+    // Use functional update to access current state
+    let newConnection = null
+    setConnections(prev => {
+      const exists = prev.some(conn =>
+        (conn.from === fromId && conn.to === toId &&
+         conn.fromPort === fromPort && conn.toPort === toPort) ||
+        (conn.from === toId && conn.to === fromId &&
+         conn.fromPort === toPort && conn.toPort === fromPort)
+      )
 
-    if (exists) return null
+      if (exists) {
+        newConnection = null
+        return prev
+      }
 
-    const newConnection = {
-      id: uuidv4(),
-      from: fromId,
-      to: toId,
-      createdAt: new Date().toISOString()
-    }
-    setConnections(prev => [...prev, newConnection])
+      newConnection = {
+        id: uuidv4(),
+        from: fromId,
+        to: toId,
+        fromPort: fromPort || 'center',
+        toPort: toPort || 'center',
+        createdAt: new Date().toISOString()
+      }
+      return [...prev, newConnection]
+    })
     return newConnection
-  }, [connections])
+  }, [])
 
   const removeConnection = useCallback((connectionId) => {
     setConnections(prev => prev.filter(conn => conn.id !== connectionId))
@@ -43,8 +54,10 @@ export const useConnections = () => {
   }, [])
 
   const getConnectedNotes = useCallback((noteId) => {
+    // Return connections in reverse order (most recent first) for deterministic path finding
     return connections
       .filter(conn => conn.from === noteId || conn.to === noteId)
+      .reverse()
       .map(conn => conn.from === noteId ? conn.to : conn.from)
   }, [connections])
 

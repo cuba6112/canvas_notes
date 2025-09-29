@@ -4,7 +4,7 @@ import { useCanvas } from '../hooks/useCanvas'
 import { useConnections } from '../hooks/useConnections'
 import { useAI } from '../hooks/useAI'
 import { calculateNotePosition, positionNearConnectedNotes } from '../utils/notePositioning'
-import { logError, getUserErrorMessage, validateNote } from '../utils/errorHandling'
+import { logError, validateNote } from '../utils/errorHandling'
 // Removed UUID import - ID generation now handled entirely by useNotes hook
 
 const NotesContext = createContext()
@@ -32,15 +32,16 @@ export const NotesProvider = ({ children }) => {
     updateNote,
     deleteNote,
     searchNotes,
-    clearError: clearNotesError,
-    setNotes
+    clearError: clearNotesError
   } = notesHook
 
   const {
     connections,
     addConnection,
+    removeConnection,
     removeConnectionsForNote,
-    getConnectedNotes
+    getConnectedNotes,
+    getConnectedSubgraph
   } = connectionsHook
 
   const {
